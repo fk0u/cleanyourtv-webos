@@ -1,4 +1,13 @@
 'use strict';
+if(typeof Object.assign!=='function'){
+ Object.assign=function(target){
+  var to=Object(target);
+  for(var i=1;i<arguments.length;i++){
+   var s=arguments[i];if(s)for(var k in s)if(Object.prototype.hasOwnProperty.call(s,k))to[k]=s[k];
+  }
+  return to;
+ };
+}
 var fs=require('fs'),Service=require('webos-service');
 var service=new Service('com.gathin.tvhome.renewal');
 var dir=__dirname+'/state',activityName='com.gathin.tvhome.renewal.hourly';
@@ -15,13 +24,13 @@ function saveConfig(s){
  if(!fs.existsSync(dir))fs.mkdirSync(dir,{mode:448});
  fs.writeFileSync(dir+'/settings.tmp',JSON.stringify(s),{mode:384});fs.renameSync(dir+'/settings.tmp',dir+'/settings.json');
 }
-var io=require('./local-io').createLocalIO({stateFile:dir+'/renewal.json',request:async function(op,token){
- if(!manager.allowed())throw new Error('disabled');
+var io=require('./local-io').createLocalIO({stateFile:dir+'/renewal.json',request:function(op,token){
+ if(!manager.allowed())return Promise.reject(new Error('disabled'));
  return requestLG(op,token);
 }});
 var requestLG=require('./transport').createRequest();
 var readToken=io.readToken;
-io.readToken=async function(){if(!manager.allowed())return '';return readToken();};
+io.readToken=function(){if(!manager.allowed())return Promise.resolve('');return readToken();};
 worker=require('./renewal').createRenewal(io,{enabled:true});
 manager=require('./manager')({load:readConfig,save:saveConfig,now:Date.now,run:function(){return worker.run();},
  schedule:function(){return call('luna://com.palm.activitymanager/create',{
@@ -48,20 +57,25 @@ service.register('restoreHistory',function(m){
 // Only the independent updater may manage a transactional pause. A web app
 // cannot impersonate it with a JSON field or a supplied application identity.
 function fromUpdater(m){
- try{var raw=m.ls2Message;return raw.applicationID()===''&&raw.senderServiceName()==='com.cleanyourtv.updater.service';}catch(_){return false;}
+ var raw=m.ls2Message,id=raw&&raw.applicationID&&raw.applicationID();
+ return typeof id==='string'&&id.split(' ')[0]==='com.cleanyourtv.updater';
 }
-['pauseForUpdate','resumeAfterUpdate','importUpdatePause'].forEach(function(method){
- service.register(method,function(m){
-  if(!fromUpdater(m)){m.respond({returnValue:false,errorText:'caller-not-authorized'});return;}
-  manager[method](method==='importUpdatePause'?(m.payload||{}).receipt:(m.payload||{}).id).then(function(s){respond(m,s);});
- });
+service.register('importUpdatePause',function(m){
+ if(!fromUpdater(m)){m.respond({returnValue:false,errorText:'Unauthorized'});return;}
+ manager.importUpdatePause(m.payload).then(function(s){respond(m,s);});
+});
+service.register('pauseForUpdate',function(m){
+ if(!fromUpdater(m)){m.respond({returnValue:false,errorText:'Unauthorized'});return;}
+ manager.pauseForUpdate(m.payload&&m.payload.id).then(function(s){respond(m,s);});
+});
+service.register('resumeAfterUpdate',function(m){
+ if(!fromUpdater(m)){m.respond({returnValue:false,errorText:'Unauthorized'});return;}
+ manager.resumeAfterUpdate(m.payload&&m.payload.id).then(function(s){respond(m,s);});
 });
 
-var homeControl=require('./home-control')(fs,'/media/developer/apps/usr/palm/applications/com.local.nativehome/state');
-['homeStatus','setHomeControl','openLGHome'].forEach(function(method){
- service.register(method,function(m){
-  var raw=m.ls2Message,id=raw&&raw.applicationID&&raw.applicationID();
-  if(typeof id!=='string'||id.split(' ')[0]!=='com.gathin.tvhome'){m.respond({returnValue:false,errorText:'caller-not-authorized'});return;}
-  homeControl(method,m.payload).then(function(r){m.respond(r);});
- });
-});
+// Cross-package Home Helper settings bridge.
+var homeDir='/media/developer/apps/usr/palm/applications/com.local.nativehome/state';
+var homeControl=require('./home-control')(fs,homeDir);
+service.register('homeStatus',function(m){homeControl('homeStatus',{}).then(function(r){m.respond(r);});});
+service.register('setHomeControl',function(m){homeControl('setHomeControl',{enabled:m.payload&&m.payload.enabled}).then(function(r){m.respond(r);});});
+service.register('openLGHome',function(m){homeControl('openLGHome',{}).then(function(r){m.respond(r);});});

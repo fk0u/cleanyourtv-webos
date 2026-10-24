@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="utf-8">
   <title>Home</title>
@@ -8,46 +8,68 @@
   <link rel="stylesheet" href="i18n.css">
 </head>
 <body>
-  <!-- Ambient glow in the colour of the focused dock app; two layers so colours crossfade. -->
+  <!-- Wallpaper & Backdrops -->
+  <div id="backdrop">
+    <div id="wallpaper" class="wallpaper default-tahoe"></div>
+    <div id="vignetteLeft"></div>
+    <div id="vignetteTop"></div>
+    <div id="vignetteBottom"></div>
+  </div>
+
+  <!-- Ambient glow in the colour of the focused dock app -->
   <div id="ambientA" class="ambient"></div>
   <div id="ambientB" class="ambient"></div>
 
-  <!-- Top shelf: the focused dock app's name, above the dock. -->
-  <div id="hero"></div>
-
-  <header>
-    <div id="leftBlock">
-      <div id="greeting"></div>
-      <div id="timeRow">
-        <span id="clock"></span><span id="ampm"></span><span class="divider"></span><span id="date"></span>
+  <!-- Top Bar: Greeting on the left; Pills + Clock on the right -->
+  <header id="topBar">
+    <div id="greeting">SELAMAT PAGI, AL-GHANI</div>
+    <div id="topRight">
+      <div id="topChips">
+        <div class="chip" id="chipWeather" role="button" tabindex="0" title="Cuaca">
+          <svg class="chip-icon" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+          <span id="weatherText">29°</span>
+        </div>
+        <div class="chip" id="chipPrayer" role="button" tabindex="0" title="Shalat">
+          <svg class="chip-icon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/><path d="M19 3v4"/><path d="M21 5h-4"/></svg>
+          <span id="prayerText">Dzuhur 11.56</span>
+        </div>
+        <div class="chip" id="chipAsk" role="button" tabindex="0" title="Tanya">
+          <svg class="chip-icon" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+          <span>Tanya</span>
+        </div>
+        <div class="chip" id="chipInputs" role="button" tabindex="0" title="Input TV">
+          <svg class="chip-icon" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+        </div>
+        <div class="chip chip-avatar" id="chipAvatar" role="button" tabindex="0" title="Pengaturan & Profil">
+          <img id="avatarImg" src="icons/avatar.jpg" alt="Al-Ghani" onerror="this.style.display='none'">
+        </div>
       </div>
-    </div>
-    <div id="topButtons">
-      <div class="pill" id="btnInputs">
-        <svg viewBox="0 0 24 24"><path d="M18,7V4c0,-1.1 -0.9,-2 -2,-2H8C6.9,2 6,2.9 6,4v3H5v6l3,6v3h8v-3l3,-6V7H18zM8,4h8v3h-2V5h-1v2h-2V5h-1v2H8V4z"/></svg>
-        <span data-i18n="Inputs">Inputs</span>
-      </div>
-      <div class="pill" id="btnWifi">
-        <svg viewBox="0 0 24 24"><path d="M1,9l2,2c4.97,-4.97 13.030,-4.97 18,0l2,-2C16.93,2.93 7.08,2.93 1,9zM9,17l3,3 3,-3c-1.65,-1.66 -4.34,-1.66 -6,0zM5,13l2,2c2.76,-2.76 7.24,-2.76 10,0l2,-2C15.14,9.14 8.87,9.14 5,13z"/></svg>
-        <span id="wifiLabel">Wi-Fi</span>
-      </div>
-      <div class="pill" id="btnSettings">
-        <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04,-0.3 0.06,-0.61 0.06,-0.94c0,-0.32 -0.02,-0.64 -0.07,-0.94l2.030,-1.58c0.18,-0.14 0.23,-0.41 0.12,-0.61l-1.92,-3.32c-0.12,-0.22 -0.37,-0.29 -0.59,-0.22l-2.39,0.96c-0.5,-0.38 -1.03,-0.7 -1.62,-0.94L14.4,2.81c-0.04,-0.24 -0.24,-0.41 -0.48,-0.41h-3.84c-0.24,0 -0.43,0.17 -0.47,0.41L9.25,5.35C8.66,5.59 8.12,5.92 7.63,6.29L5.24,5.33c-0.22,-0.08 -0.47,0 -0.59,0.22L2.74,8.87C2.62,9.08 2.66,9.34 2.86,9.48l2.030,1.58C4.84,11.36 4.8,11.69 4.8,12s0.02,0.64 0.07,0.94l-2.030,1.58c-0.18,0.14 -0.23,0.41 -0.12,0.61l1.92,3.32c0.12,0.22 0.37,0.29 0.59,0.22l2.39,-0.96c0.5,0.38 1.03,0.7 1.62,0.94l0.36,2.54c0.05,0.24 0.24,0.41 0.48,0.41h3.84c0.24,0 0.44,-0.17 0.47,-0.41l0.36,-2.54c0.59,-0.24 1.13,-0.56 1.62,-0.94l2.39,0.96c0.22,0.08 0.47,0 0.59,-0.22l1.92,-3.32c0.12,-0.22 0.07,-0.47 -0.12,-0.61L19.14,12.94zM12,15.6c-1.98,0 -3.6,-1.62 -3.6,-3.6s1.62,-3.6 3.6,-3.6s3.6,1.62 3.6,3.6S13.98,15.6 12,15.6z"/></svg>
-        <span data-i18n="Settings">Settings</span>
-      </div>
+      <div id="clock">10.00</div>
     </div>
   </header>
 
-  <!-- Everything below the header scrolls together: dock band, tiles and the glass highlight. -->
+  <!-- Editorial Hero Section (Eyebrow, Title, Hint, Action Button) -->
+  <section id="heroSection">
+    <div id="heroEyebrow">APLIKASI SISTEM</div>
+    <h1 id="heroTitle">YouTube</h1>
+    <div id="heroHint">Tahan OK untuk opsi</div>
+    <button id="heroAction" class="hero-action-pill" role="button" tabindex="0">
+      <svg class="hero-play-icon" viewBox="0 0 24 24"><polygon points="6 4 19 12 6 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/></svg>
+      <span id="heroActionText">Buka YouTube</span>
+    </button>
+  </section>
+
+  <!-- Viewport for Stage, Dock, Tooltip & Launchpad Grid -->
   <div id="viewport">
     <div id="stage">
       <div id="dockBand"></div>
+      <div id="dockTooltip">YouTube</div>
       <div id="tiles"></div>
       <div id="glass"></div>
     </div>
   </div>
 
-  <!-- Dropdown under the Inputs pill. -->
+  <!-- Dropdown under the Inputs pill -->
   <div id="inputsPanel" class="hidden"></div>
 
   <div id="toast"></div>

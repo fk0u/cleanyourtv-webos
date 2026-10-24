@@ -1,4 +1,24 @@
 'use strict';
+if(typeof Object.assign!=='function'){
+ Object.assign=function(target){
+  if(target===undefined||target===null)throw new TypeError('Cannot convert undefined or null to object');
+  var to=Object(target);
+  for(var i=1;i<arguments.length;i++){
+   var nextSource=arguments[i];
+   if(nextSource!==undefined&&nextSource!==null){
+    for(var nextKey in nextSource){
+     if(Object.prototype.hasOwnProperty.call(nextSource,nextKey)){
+      to[nextKey]=nextSource[nextKey];
+     }
+    }
+   }
+  }
+  return to;
+ };
+}
+if(!Array.prototype.includes){Array.prototype.includes=function(x,f){return this.indexOf(x,f)!==-1;};}
+if(!Array.prototype.find){Array.prototype.find=function(p,t){for(var i=0;i<this.length;i++){if(p.call(t,this[i],i,this))return this[i];}return undefined;};}
+if(!String.prototype.includes){String.prototype.includes=function(x,f){return this.indexOf(x,f)!==-1;};}
 var fs=require('fs'),Service=require('webos-service'),claim=require('./boot-state').claim;
 var service=new Service('com.local.nativehome.service');
 var secureState=require('/media/developer/apps/usr/palm/applications/com.local.nativehome/state-permissions');

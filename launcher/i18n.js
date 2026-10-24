@@ -2,10 +2,11 @@
 (function(root){
  'use strict';
  var key='tvhome.language',catalogs={},active='en',dialog=null,previous=null,systemLanguage=null,pending=false,callbacks=[];
- var languages=[{code:'en',name:'English'},{code:'de',name:'Deutsch'},{code:'es',name:'Español'},{code:'pt-BR',name:'Português (Brasil)'},{code:'fr',name:'Français'},{code:'it',name:'Italiano'},{code:'ko',name:'한국어'},{code:'hi',name:'हिन्दी'},{code:'pl',name:'Polski'},{code:'ru',name:'Русский'}];
+ var languages=[{code:'en',name:'English'},{code:'id',name:'Bahasa Indonesia'},{code:'de',name:'Deutsch'},{code:'es',name:'Español'},{code:'pt-BR',name:'Português (Brasil)'},{code:'fr',name:'Français'},{code:'it',name:'Italiano'},{code:'ko',name:'한국어'},{code:'hi',name:'हिन्दी'},{code:'pl',name:'Polski'},{code:'ru',name:'Русский'}];
  function normalize(value){
   var base=String(value||'').replace(/_/g,'-').toLowerCase().split('-')[0];
   if(base==='pt')return 'pt-BR';
+  if(base==='in'||base==='id')return 'id';
   for(var i=0;i<languages.length;i++)if(languages[i].code===base)return base;
   return null;
  }

@@ -1,4 +1,13 @@
 'use strict';
+if(typeof Object.assign!=='function'){
+ Object.assign=function(target){
+  var to=Object(target);
+  for(var i=1;i<arguments.length;i++){
+   var s=arguments[i];if(s)for(var k in s)if(Object.prototype.hasOwnProperty.call(s,k))to[k]=s[k];
+  }
+  return to;
+ };
+}
 // A single service process owns this queue. Home interception is never called here.
 module.exports=function(io){
  var state,stopped=false,queue=Promise.resolve(),generation=0;
@@ -7,63 +16,74 @@ module.exports=function(io){
  function status(){return JSON.parse(JSON.stringify(state));}
  function save(){io.save(state);}
  function enqueue(fn){var p=queue.then(fn).catch(function(){stopped=true;state.enabled=false;state.error='storage-error';return status();});queue=p;return p;}
- async function check(){
-  if(stopped||!state.enabled)return status();
-  var result=await io.run();
-  if(stopped||!state.enabled)return status();
-  if(result.status!=='cooldown')state.last=result;
-  if(result.status==='renewed')state.lastRenewedAt=io.now();
-  save();return status();
+ function check(){
+  if(stopped||!state.enabled)return Promise.resolve(status());
+  return Promise.resolve().then(function(){
+   return io.run();
+  }).then(function(result){
+   if(stopped||!state.enabled)return status();
+   if(result.status!=='cooldown')state.last=result;
+   if(result.status==='renewed')state.lastRenewedAt=io.now();
+   save();return status();
+  });
  }
  function validId(id){return typeof id==='string'&&/^[a-zA-Z0-9-]{1,80}$/.test(id);}
  return {
-  importUpdatePause:function(receipt){return enqueue(async function(){
+  importUpdatePause:function(receipt){return enqueue(function(){
    if(!receipt||!validId(receipt.id)||receipt.confirmed!==true||typeof receipt.wasEnabled!=='boolean')return Object.assign(status(),{error:'invalid-pause-receipt'});
    if(state.completedUpdate===receipt.id&&!state.updatePause)return status();
    if(state.updatePause){
     if(state.updatePause.id!==receipt.id)return Object.assign(status(),{error:'pause-import-conflict'});
     if(state.updatePause.confirmed&&!state.error)return status();
    }else{
-   if(state.completedUpdate||state.error||(state.enabled&&!state.preferenceTouched))return Object.assign(status(),{error:'pause-import-conflict'});
-   state.updatePause={id:receipt.id,wasEnabled:state.preferenceTouched?state.enabled:receipt.wasEnabled,confirmed:false};
+    if(state.completedUpdate||state.error||(state.enabled&&!state.preferenceTouched))return Object.assign(status(),{error:'pause-import-conflict'});
+    state.updatePause={id:receipt.id,wasEnabled:state.preferenceTouched?state.enabled:receipt.wasEnabled,confirmed:false};
    }
    generation++;stopped=true;state.error=null;
    state.enabled=false;save();
-   var r;try{r=await io.cancel();}catch(_){r=null;}
-   if(!r||!(r.returnValue===true||r.errorCode===2)){state.error='cancel-unconfirmed';save();return status();}
-   state.updatePause.confirmed=true;
-   try{save();}catch(e){state.updatePause.confirmed=false;throw e;}
-   return status();
-  });},
-  pauseForUpdate:function(id){
-   if(!validId(id))return Promise.resolve(Object.assign(status(),{error:'invalid-update-id'}));
-   generation++;stopped=true;
-   return enqueue(async function(){
-    if(state.updatePause&&state.updatePause.id!==id)return Object.assign(status(),{error:'update-in-progress'});
-    if(!state.updatePause)state.updatePause={id:id,wasEnabled:state.enabled,confirmed:false};
-    state.updatePause.confirmed=false;state.enabled=false;state.error=null;save();
-    var r;try{r=await io.cancel();}catch(_){r=null;}
+   return Promise.resolve().then(function(){
+    return io.cancel();
+   }).catch(function(){return null;}).then(function(r){
     if(!r||!(r.returnValue===true||r.errorCode===2)){state.error='cancel-unconfirmed';save();return status();}
     state.updatePause.confirmed=true;
     try{save();}catch(e){state.updatePause.confirmed=false;throw e;}
     return status();
    });
+  });},
+  pauseForUpdate:function(id){
+   if(!validId(id))return Promise.resolve(Object.assign(status(),{error:'invalid-update-id'}));
+   generation++;stopped=true;
+   return enqueue(function(){
+    if(state.updatePause&&state.updatePause.id!==id)return Object.assign(status(),{error:'update-in-progress'});
+    if(!state.updatePause)state.updatePause={id:id,wasEnabled:state.enabled,confirmed:false};
+    state.updatePause.confirmed=false;state.enabled=false;state.error=null;save();
+    return Promise.resolve().then(function(){
+     return io.cancel();
+    }).catch(function(){return null;}).then(function(r){
+     if(!r||!(r.returnValue===true||r.errorCode===2)){state.error='cancel-unconfirmed';save();return status();}
+     state.updatePause.confirmed=true;
+     try{save();}catch(e){state.updatePause.confirmed=false;throw e;}
+     return status();
+    });
+   });
   },
-  resumeAfterUpdate:function(id){var ticket=generation;return enqueue(async function(){
+  resumeAfterUpdate:function(id){var ticket=generation;return enqueue(function(){
    if(validId(id)&&state.completedUpdate===id&&!state.updatePause)return status();
    var pause=state.updatePause;
    if(!validId(id)||!pause||pause.id!==id||pause.confirmed!==true)return Object.assign(status(),{error:'invalid-update-pause'});
-   if(pause.wasEnabled){
-    var r=await io.schedule();
-    if(!r||r.returnValue!==true){state.error='schedule-unavailable';save();return status();}
-    if(ticket!==generation){await io.cancel();return status();}
-   }
-   var previousCompleted=state.completedUpdate;
-   state.enabled=pause.wasEnabled===true;state.error=null;state.completedUpdate=id;delete state.updatePause;
-   try{save();}catch(e){state.enabled=false;state.updatePause=pause;state.completedUpdate=previousCompleted;throw e;}
-   stopped=!state.enabled;return status();
+   var schedPromise = pause.wasEnabled ? Promise.resolve().then(function(){return io.schedule();}) : Promise.resolve(null);
+   return schedPromise.then(function(r){
+    if(pause.wasEnabled){
+     if(!r||r.returnValue!==true){state.error='schedule-unavailable';save();return status();}
+     if(ticket!==generation){return Promise.resolve().then(function(){return io.cancel();}).then(function(){return status();});}
+    }
+    var previousCompleted=state.completedUpdate;
+    state.enabled=pause.wasEnabled===true;state.error=null;state.completedUpdate=id;delete state.updatePause;
+    try{save();}catch(e){state.enabled=false;state.updatePause=pause;state.completedUpdate=previousCompleted;throw e;}
+    stopped=!state.enabled;return status();
+   });
   });},
-  restoreHistory:function(snapshot){return enqueue(async function(){
+  restoreHistory:function(snapshot){return enqueue(function(){
    // Preserve diagnostics only, never import enabled=true or schedule renewal.
    if(state.enabled||state.last||!snapshot||snapshot.enabled!==false)return status();
    var allowed=['status','checkedAt','nextAt','failures','remainingSeconds'];
@@ -75,23 +95,29 @@ module.exports=function(io){
   });},
   allowed:function(){return !stopped&&state.enabled;},status:status,
   check:function(){return enqueue(check);},
-  enable:function(){var ticket=++generation;return enqueue(async function(){
+  enable:function(){var ticket=++generation;return enqueue(function(){
    if(state.updatePause)return Object.assign(status(),{error:'update-in-progress'});
    state.preferenceTouched=true;
    state.enabled=false;state.error=null;save();
-   var r=await io.schedule();
-   if(!r||r.returnValue!==true){state.error='schedule-unavailable';save();return status();}
-   if(ticket!==generation){await io.cancel();return status();}
-   state.enabled=true;stopped=false;save();return check();
+   return Promise.resolve().then(function(){
+    return io.schedule();
+   }).then(function(r){
+    if(!r||r.returnValue!==true){state.error='schedule-unavailable';save();return status();}
+    if(ticket!==generation){return Promise.resolve().then(function(){return io.cancel();}).then(function(){return status();});}
+    state.enabled=true;stopped=false;save();return check();
+   });
   });},
-  disable:function(){generation++;stopped=true;return enqueue(async function(){
+  disable:function(){generation++;stopped=true;return enqueue(function(){
    state.preferenceTouched=true;state.enabled=false;state.error=null;if(state.updatePause)state.updatePause.wasEnabled=false;var persisted=true;
    try{save();}catch(_){persisted=false;}
-   var r;try{r=await io.cancel();}catch(_){r=null;}
-   if(!r||!(r.returnValue===true||r.errorCode===2))state.error='cancel-unconfirmed';
-   if(!persisted)state.error='disable-not-saved';
-   try{save();}catch(_){state.error='disable-not-saved';}
-   return status();
+   return Promise.resolve().then(function(){
+    return io.cancel();
+   }).catch(function(){return null;}).then(function(r){
+    if(!r||!(r.returnValue===true||r.errorCode===2))state.error='cancel-unconfirmed';
+    if(!persisted)state.error='disable-not-saved';
+    try{save();}catch(_){state.error='disable-not-saved';}
+    return status();
+   });
   });}
  };
 };

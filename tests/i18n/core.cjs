@@ -6,6 +6,8 @@ function load(lang,stored,blocked=false){
  ctx.window=ctx;vm.runInNewContext(source,ctx);return {i:ctx.HomeI18n,saved,reloads:()=>reloads};
 }
 assert.equal(load(['pt-PT']).i.language(),'pt-BR');
+assert.equal(load(['id-ID']).i.language(),'id');
+assert.equal(load(['in-ID']).i.language(),'id');
 assert.equal(load(['ja-JP','de-AT']).i.language(),'de');
 assert.equal(load(['xx']).i.language(),'en');
 assert.equal(load(['en-US'],'ru').i.language(),'ru');
@@ -17,7 +19,7 @@ assert.equal(x.i.t('Fallback {n}',{n:0}),'Fallback 0');
 assert.equal(x.i.setLanguage('de'),true);assert.equal(x.saved['tvhome.language'],'de');assert.equal(x.reloads(),1);
 assert.equal(x.i.setLanguage('bad'),false);assert.equal(x.reloads(),1);
 assert.equal(load(['en'],null,true).i.setLanguage('de'),false,'blocked storage must not pretend to persist or reload');
-assert.equal(x.i.languages.length,10);
+assert.equal(x.i.languages.length,11);
 console.log('PASS locale resolution, preference, interpolation, storage failures');
 let bridge,timed,loaded=false;
 const tv={navigator:{language:'en-US'},localStorage:{getItem:()=>null},setTimeout:fn=>{timed=fn;return 1;},clearTimeout(){},PalmServiceBridge:function(){bridge=this;this.cancel=()=>{};this.call=(uri,raw)=>{assert.equal(uri,'luna://com.webos.settingsservice/getSystemSettings');assert.equal(JSON.parse(raw).key,'localeInfo');};}};tv.window=tv;
